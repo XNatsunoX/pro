@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surprise for You! 💖</title>
+    
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            width: 100vw;
+            margin: 0;
+            background-color: #f7f7f7;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden; 
+        }
+
+        /* ** ส่วนที่เพิ่มเข้ามา: แผ่นใสที่ดักจับการคลิกพลาด ** */
+        #click-catcher {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: transparent; /* ทำให้มองไม่เห็น */
+            z-index: 5; /* ให้อยู่ด้านบนทุกอย่างยกเว้นปุ่มจริง */
+        }
+        
+        /* --------------------------------- */
+        /* ส่วนที่ 1: ปุ่มจริง (ตัวที่ขยาย) */
+        /* --------------------------------- */
+        #real-button {
+            width: 100px; 
+            height: 100px;
+            background-color: #66ccff;
+            border: 3px solid #3399ff;
+            border-radius: 50%;
+            color: white;
+            font-size: 10px; 
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 6px #3399ff;
+            position: fixed;
+            
+            /* จัดตำแหน่งกลางจอ */
+            top: 50%;
+            left: 50%;
+            margin-top: -50px; 
+            margin-left: -50px;
+            
+            transition: transform 0.4s ease-out;
+            
+            transform: scale(0.1); 
+            transform-origin: center center;
+            z-index: 10; /* ** สำคัญ: ต้องอยู่เหนือ click-catcher ** */
+            
+            text-align: center;
+            line-height: 94px; 
+            padding: 0;
+        }
+        
+        /* --------------------------------- */
+        /* ส่วนที่ 2: ข้อความบอกใบ้ด้านล่าง */
+        /* --------------------------------- */
+        #hint-message {
+            position: fixed;
+            bottom: 20px;
+            font-size: 1.8em;
+            color: #555;
+            font-weight: bold;
+            transition: color 0.3s;
+            z-index: 15; /* ให้อยู่เหนือทุกอย่างเพื่อให้เห็นชัด */
+        }
+
+        /* --------------------------------- */
+        /* ส่วนที่ 3: หน้าจอแสดงผล (Overlay) */
+        /* --------------------------------- */
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            z-index: 100;
+            display: none; 
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: #333;
+        }
+        
+        #display-image {
+            max-width: 90%;
+            max-height: 80%;
+            object-fit: contain;
+            margin-bottom: 20px;
+        }
+        
+        #message-box {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #cc0000;
+            min-height: 50px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        /* สไตล์สำหรับข้อความสุดท้าย (หัวใจและข้อความซึ้ง ๆ) */
+        .final-message {
+            font-size: 3em;
+            color: #ff0077;
+            text-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+
+    </style>
+</head>
+<body>
+    
+    <div id="click-catcher"></div>
+
+    <button id="real-button">...</button> 
+    
+    <p id="hint-message">คลิกตรงไหนดีนะ?</p>
+
+
+    <div id="overlay">
+        <img id="display-image" src="" alt="Effect Image" style="display: none;">
+        <div id="message-box"></div>
+    </div>
+
+
+    <script>
+        const realButton = document.getElementById('real-button');
+        const hintMessage = document.getElementById('hint-message');
+        const clickCatcher = document.getElementById('click-catcher'); // ดึง Click Catcher มาใช้
+        const overlay = document.getElementById('overlay');
+        const displayImage = document.getElementById('display-image');
+        const messageBox = document.getElementById('message-box');
+
+        let currentScale = 0.1; 
+        const scaleIncrement = 0.5;
+        const maxScale = 12; 
+        let missCount = 0;
+        let isSuccess = false;
+
+        const missMessages = [
+            { text: "กดตรงนี้", color: "#cc0000" },
+            { text: "กดตรงนี้ครับ", color: "#e65c00" },
+            { text: "กดให้โดน เอ้ย", color: "#ff8c00" },
+            { text: "กดให้โดนนนน", color: "#ff0000" },
+            { text: "ยังไม่โดนอีก", color: "#8b0000" },
+            { text: "หงุดหงิดแล้วนะ", color: "#550000" },
+            { text: "จะเต็มจอแล้วนะ! หาให้เจอ!", color: "#000000" }
+        ];
+
+        const messageSequence = [
+            { text: "เหนื่อยมั้ย ", duration: 3000 },
+            { text: "พยายามเต็มที่แล้ว แกเก่งที่สุดแล้ว ", duration: 4000 },
+            { text: "เพื่ออนาคตของตัวแก ", duration: 3000 },
+            { text: "มหาลัยมอเชียงใหม่ รอแกอยู่ ", duration: 4000 },
+            { text: "แกต้องเข้าให้ได้นะ ", duration: 3000 },
+            { text: "เราเป็นกำลังใจ ", duration: 3000 },
+            { text: "และจะเป็นกำลังใจให้ตลอดไป", duration: 4000 },
+        ];
+        
+        const photoSequence = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg'];
+        
+        // ---------------------------------
+        // ฟังก์ชันเมื่อคลิกพลาด (Miss)
+        // ---------------------------------
+        function handleMiss() {
+            if (isSuccess) return; 
+            
+            missCount++;
+            
+            currentScale += scaleIncrement;
+            
+            if (currentScale > maxScale) {
+                currentScale = maxScale;
+            }
+            
+            realButton.style.transform = `scale(${currentScale})`;
+            
+            const msgIndex = Math.min(missCount - 1, missMessages.length - 1);
+            const messageData = missMessages[msgIndex];
+            
+            if (currentScale >= 1.0) {
+                 realButton.textContent = messageData.text.replace('ครับ', '').replace('ครับ', '');
+                 realButton.style.fontSize = `${10 + currentScale * 2}px`; 
+            }
+            
+            hintMessage.textContent = messageData.text;
+            hintMessage.style.color = messageData.color; 
+        }
+
+
+        // ---------------------------------
+        // ลำดับเหตุการณ์ทั้งหมดหลังคลิกสำเร็จ (เหมือนเดิม)
+        // ---------------------------------
+        async function startSurpriseSequence() {
+            hintMessage.style.display = 'none';
+            clickCatcher.style.display = 'none'; // ซ่อนตัวดักจับการคลิก
+
+            // 1. ระเบิด GIF (boom.gif) - 2 วินาที
+            displayImage.src = 'boom.gif'; 
+            displayImage.style.display = 'block';
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // 2. Among Us GIF/รูป (amongus.gif) - 3 วินาที
+            displayImage.src = 'amongus.gif'; 
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            displayImage.style.display = 'none'; 
+            
+            // 3. แสดงข้อความให้กำลังใจตามลำดับ
+            messageBox.style.color = '#5b008d'; 
+            for (const item of messageSequence) {
+                messageBox.textContent = item.text; 
+                messageBox.style.opacity = 1;
+                await new Promise(resolve => setTimeout(resolve, item.duration));
+                messageBox.style.opacity = 0;
+                await new Promise(resolve => setTimeout(resolve, 500)); 
+            }
+            
+            // 4. แสดงรูปภาพ 5 รูปต่อเนื่อง
+            for (const pic of photoSequence) {
+                displayImage.src = pic;
+                displayImage.style.display = 'block';
+                await new Promise(resolve => setTimeout(resolve, 2000)); 
+            }
+            
+            // 5. ทำให้ภาพ 5 ภาพหายไป 
+            displayImage.style.display = 'none';
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // 6. ข้อความสุดท้าย (หัวใจและกำลังใจ)
+            displayImage.src = 'heart.png'; 
+            displayImage.style.display = 'block';
+            displayImage.style.maxWidth = '250px'; 
+            
+            messageBox.innerHTML = 
+                '<div class="final-message">สู้ๆนะ ไอตุดโคตรจะเหม็น ❤️</div>' + 
+                '<div style="font-size: 1.5em; color: #555;">เป็นกำลังใจ แกทำได้</div>';
+            messageBox.style.opacity = 1;
+        }
+
+        // ---------------------------------
+        // การจัดการการคลิก
+        // ---------------------------------
+        
+        // ** ดักจับการคลิกที่ปุ่มจริง (Success) **
+        realButton.addEventListener('click', function(event) {
+            if (!isSuccess) {
+                isSuccess = true;
+                realButton.style.display = 'none'; 
+                overlay.style.display = 'flex'; 
+                startSurpriseSequence(); 
+            }
+        });
+
+        // ** ดักจับการคลิกพลาดที่ Click Catcher **
+        clickCatcher.addEventListener('click', function(event) {
+            // ตรวจสอบให้แน่ใจว่าคลิกบน click-catcher จริงๆ (ไม่ใช่ปุ่มจริงที่อยู่เหนือมัน)
+            if (event.target === clickCatcher && !isSuccess) {
+                handleMiss();
+            }
+        });
+        
+        // กำหนดข้อความเริ่มต้น
+        realButton.textContent = '...';
+
+    </script>
+
+</body>
+</html>
